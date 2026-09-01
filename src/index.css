@@ -1,0 +1,111 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #f4f3ef;
+  --color-surface: #ffffff;
+  --color-text: #1f1f23;
+  --color-text-secondary: #8e8c87;
+  --color-text-muted: #a8a6a1;
+  --color-border: #e8e6e1;
+  --color-tag: #2c2c35;
+  --color-accent: #5b8bd8;
+  --color-accent-light: #e8f0fc;
+  --color-danger: #e57373;
+  --color-success: #81c784;
+  --color-event-orange: #f4d0b0;
+  --color-event-blue: #b8d4e8;
+}
+
+:root {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+.dark body {
+  background-color: #1a1a1e;
+  color: #f0f0f0;
+}
+
+.dark .bg-surface {
+  background-color: #242429;
+}
+
+.dark .bg-bg {
+  background-color: #1a1a1e;
+}
+
+.dark .border-border {
+  border-color: #33333a;
+}
+
+.dark .text-text {
+  color: #f0f0f0;
+}
+
+.dark .text-text-secondary {
+  color: #9c9aa0;
+}
+
+.dark .text-text-muted {
+  color: #6f6e73;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1cfc7;
+  border-radius: 3px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #404049;
+}
+
+input,
+select,
+textarea {
+  outline: none;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* 字体自托管：不依赖 Google Fonts，避免国内访问时阻塞渲染 */
+@font-face {
+  font-family: "ZCOOL KuaiLe";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./assets/fonts/zcool-kuaile-400.woff2") format("woff2");
+}
+
+.font-cute {
+  font-family: "ZCOOL KuaiLe", "STKaiti", "KaiTi", "楷体", cursive;
+}
