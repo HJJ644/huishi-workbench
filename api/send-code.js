@@ -85,8 +85,8 @@ module.exports = async function handler(req, res) {
       purpose
     }
   };
-  if (c.privkey) sendBody.accessToken = c.privkey; else sendBody.user_id = c.pubkey;
-
+  sendBody.user_id = c.pubkey;
+  if (c.privkey) sendBody.accessToken = c.privkey;
   try {
     const r = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
       method: 'POST',
