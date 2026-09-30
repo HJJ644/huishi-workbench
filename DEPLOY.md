@@ -24,6 +24,25 @@ Vercel 项目 → **Settings → Environment Variables**，逐条添加（填完
 
 > 环境变量只存在服务端，**不会出现在页面源码里**。前端只需调用同域 `/api/send-code`、`/api/verify-code`。
 
+## 二之一、云端同步（Supabase，可选但强烈建议）
+
+开启后，登录用户的订单 / 单主 / 模板 / 商品 / 费用设置 / 小票配置会保存在 Supabase 云端，多设备自动一致。
+
+**1. 建 Supabase 项目**：https://supabase.com → New project → 区域选离你近的（如 Singapore）。
+**2. 建表 + 行级隔离**：左侧 **SQL Editor → New query** → 把仓库根目录 `supabase/schema.sql` 整段粘进去 → **Run**（弹窗「可能破坏性」直接 Run 即可，空库无害）。
+**3. 关闭邮箱确认**（否则注册要点邮件链接，破坏验证码体验）：Supabase 左侧 **Authentication → Providers → Email** → 关掉 **Confirm email**（保留「Enable email signup」）。
+**4. 在 Vercel 补这 3 个环境变量**（Settings → Environment Variables，填完 Redeploy）：
+
+| 变量名 | 说明 |
+|---|---|
+| `SUPABASE_URL` | Supabase 项目 Settings → API 里的 Project URL（`https://xxxx.supabase.co`） |
+| `SUPABASE_ANON_KEY` | 同页的 **anon public / Publishable key**（`sb_publishable_...` 或 `eyJ...`，可公开） |
+| `SUPABASE_SERVICE_ROLE_KEY` | 同页的 **secret / Service role key**（`sb_secret_...` 或 `eyJ...`，**最高权限，仅服务端，切勿泄露**） |
+
+> `index.html` 里已写死本项目的 `SUPABASE_URL` 与 `SUPABASE_ANON`（均为公开值，可公开）。若你换了自己的 Supabase 项目，改这两行常量即可；`SERVICE_ROLE` 目前仅前端未直接使用（数据走 anon + RLS），保留是为了后续扩展。
+
+**5. 行为说明**：登录用同一邮箱+密码，Supabase 用 RLS 保证「只能读写自己的行」；老账户首次登录会自动在云端建档并把本地数据推上去；任何同步异常都静默回退本地，不丢数据。顶栏「☁ 云端」标记表示已同步。
+
 ## 三、验证码的后端流程
 
 1. `POST /api/send-code` `{email, purpose}` → 服务端生成 6 位码 → 调 EmailJS 发送 → 只返回 **HMAC 签名 token**（验证码本身不下发到前端）
