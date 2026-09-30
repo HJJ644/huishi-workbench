@@ -811,7 +811,12 @@ input,select,textarea{font-size:13.5px !important;font-weight:500}
 .ord-mini,.lg-row,.draft-row,.draft-row .note{font-size:13.5px !important}
 .tag{font-size:12px !important;font-weight:600}
 .toast-msg{font-size:13.5px !important;font-weight:600}
+#tb-cloud{display:none;align-items:center;gap:3px;font-size:11px;color:var(--accent);font-weight:700;margin-left:6px}
+#tb-cloud.on{display:inline-flex}
 </style>
+<!-- 云端同步客户端：Supabase（公开 anon/publishable key 可安全嵌入；service_role 仅存 Vercel 环境变量）。
+     加载失败（离线 / CDN 不可达）时云同步自动关闭，退化为纯本地，不影响使用。 -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -894,6 +899,7 @@ input,select,textarea{font-size:13.5px !important;font-weight:500}
     <div class="tb-user" id="tb-user">
       <span class="tb-avatar" id="tb-avatar">绘</span>
       <span class="tb-email" id="tb-email">—</span>
+      <span id="tb-cloud" title="数据已开启云端同步（多设备实时一致）">☁ 云端</span>
     </div>
     <div class="tb-actions">
       <button class="btn sm solid" id="tb-login">登录 / 注册</button>
@@ -1412,7 +1418,7 @@ function load(){
   });
   return d;
 }
-function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){} }
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){} cloudPushSoon(); }
 const $ = s=>document.querySelector(s);
 const $$ = s=>[...document.querySelectorAll(s)];
 const esc = s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -1435,6 +1441,106 @@ function orderReceived(o){
   return 0;
 }
 function clientOf(n){ return S.clients.find(c=>c.nick===n); }
+
+/* ================= 云端同步（Supabase · 方案 B 时间戳合并） =================
+   公开值（publishable / anon key）可安全嵌入前端；service_role 仅存 Vercel 环境变量。
+   设计：本地 localStorage 仍是离线缓存与单设备主存；登录后把数据同步到 Supabase，
+   按 key 的 updated_at 做「最后写入者胜出」：数组型（orders/clients/templates/products）
+   按 id 并集合并，对象型整体替换。任何环节失败都静默回退纯本地，不阻断使用。 */
+const SUPABASE_URL   = 'https://kbbrnyvhxebrvwrwqlqs.supabase.co';
+const SUPABASE_ANON  = 'sb_publishable_jA2lmelkq26a_J4aYyJNAA_nYVe8bFh';
+let _sb = null, _sbUser = null, _cloudOn = false;
+const _CLOUD_ARR = ['orders','clients','templates','products'];
+const _CLOUD_OBJ = ['profile','fee','receiptStyles','receiptMods'];
+function _cloudTs(k){ try{ const v = (S._cloud && S._cloud[k]); return v ? new Date(v).getTime() : 0; }catch(e){ return 0; } }
+async function cloudInit(){
+  try{
+    if(typeof window.supabase === 'undefined' || !window.supabase || !window.supabase.createClient) return false;
+    _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
+      auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:false, storageKey:'huishi_sb_auth_v1' }
+    });
+    const { data } = await _sb.auth.getSession();
+    if(data && data.session && data.session.user){ _sbUser = data.session.user; _cloudOn = true; _cloudRefreshBadge(); }
+    return true;
+  }catch(e){ _sb = null; _cloudOn = false; return false; }
+}
+async function cloudEnsureSession(email, password){
+  if(!_sb) return false;
+  if(_cloudOn && _sbUser && _sbUser.email === email) return true;
+  try{
+    let r = await _sb.auth.signInWithPassword({ email, password });
+    if(r.error){
+      /* 本地账户已存在但云端还没有 → 自动注册（需 Supabase 关闭邮箱确认） */
+      const su = await _sb.auth.signUp({ email, password });
+      if(su.error) return false;
+      r = await _sb.auth.signInWithPassword({ email, password });
+      if(r.error) return false;
+    }
+    _sbUser = (r.data.session && r.data.session.user) || r.data.user || _sbUser;
+    _cloudOn = true; _cloudRefreshBadge();
+    return true;
+  }catch(e){ return false; }
+}
+function cloudSignOut(){ try{ if(_sb) _sb.auth.signOut(); }catch(e){} _sbUser=null; _cloudOn=false; _cloudRefreshBadge(); }
+function _cloudRefreshBadge(){ const el=$('#tb-cloud'); if(el) el.classList.toggle('on', _cloudOn); }
+async function cloudPull(){
+  if(!_cloudOn || !_sb || !_sbUser) return null;
+  try{
+    const { data, error } = await _sb.from('app_state').select('key,data,updated_at').eq('user_id', _sbUser.id);
+    if(error) return null;
+    return data || [];
+  }catch(e){ return null; }
+}
+async function cloudPush(){
+  if(!_cloudOn || !_sb || !_sbUser) return;
+  try{
+    const now = new Date().toISOString();
+    const rows = [];
+    _CLOUD_ARR.concat(_CLOUD_OBJ).forEach(k=>{
+      if(S[k] === undefined) return;
+      S._cloud = S._cloud || {}; S._cloud[k] = now;
+      rows.push({ user_id:_sbUser.id, key:k, data: S[k], updated_at: now });
+    });
+    if(!rows.length) return;
+    const { error } = await _sb.from('app_state').upsert(rows, { onConflict:'user_id,key' });
+    if(error) console.error('[cloud] push failed', error.message);
+  }catch(e){}
+}
+/* 拉取合并：按 key 比 updated_at，远端更新则采用；数组型按 id 并集（同 id 远端优先） */
+function cloudMergePull(rows){
+  if(!rows || !rows.length) return false;
+  let changed = false;
+  const byKey = {};
+  rows.forEach(r=> byKey[r.key] = r);
+  _CLOUD_ARR.forEach(k=>{
+    const r = byKey[k]; if(!r) return;
+    const remoteTs = new Date(r.updated_at).getTime();
+    if(remoteTs > _cloudTs(k)){
+      const remoteArr = Array.isArray(r.data) ? r.data : [];
+      const localArr  = Array.isArray(S[k]) ? S[k] : [];
+      const map = {};
+      localArr.forEach(x=>{ if(x && x.id!=null) map[x.id]=x; });
+      remoteArr.forEach(x=>{ if(x && x.id!=null) map[x.id]=x; });
+      S[k] = Object.keys(map).map(id=>map[id]);
+      S._cloud = S._cloud || {}; S._cloud[k] = r.updated_at;
+      changed = true;
+    }
+  });
+  _CLOUD_OBJ.forEach(k=>{
+    const r = byKey[k]; if(!r) return;
+    const remoteTs = new Date(r.updated_at).getTime();
+    if(remoteTs > _cloudTs(k)){
+      if(r.data && typeof r.data === 'object'){ S[k] = r.data; S._cloud = S._cloud||{}; S._cloud[k]=r.updated_at; changed = true; }
+    }
+  });
+  return changed;
+}
+let _cloudPushTimer = null;
+function cloudPushSoon(){
+  if(!_cloudOn) return;
+  if(_cloudPushTimer) clearTimeout(_cloudPushTimer);
+  _cloudPushTimer = setTimeout(()=>{ cloudPush().catch(()=>{}); }, 700);
+}
 
 /* ================= 路由 ================= */
 let curPage='home', curTab=null;
@@ -2105,6 +2211,8 @@ function renderProfileInfo(){
     if(!np || np.length<6) return toast('新密码至少 6 位');
     if(np !== np2) return toast('两次输入的新密码不一致');
     a.pass = hashStr(np); setAccounts(acc);
+    /* 同步到 Supabase（若已开启云端同步） */
+    if(_cloudOn && _sb){ try{ const { error } = await _sb.auth.updateUser({ password: np }); if(error) console.warn('[cloud] 密码同步失败', error.message); }catch(e){} }
     $('#p-pass-code').value=''; $('#p-newpass').value=''; $('#p-newpass2').value='';
     toast('密码已修改，下次登录请使用新密码');
   };
@@ -4730,6 +4838,7 @@ function updateTopbar(){
     else tba.textContent = (nm||'绘')[0];
     $('#tb-email').textContent  = getSession();
   }
+  _cloudRefreshBadge();
 }
 function setAuthMode(m){
   authMode = m;
@@ -4755,14 +4864,14 @@ async function authSubmit(){
     const name = $('#auth-name').value.trim() || email.split('@')[0];
     acc[email] = { pass: hashStr(pass), name };
     setAccounts(acc);
-    loginAs(email, true);
+    await loginAs(email, true, pass);
   } else {
     if(!acc[email]){ $('#auth-err').textContent='账户不存在，请先注册'; return; }
     if(acc[email].pass !== hashStr(pass)){ $('#auth-err').textContent='密码错误'; return; }
-    loginAs(email, false);
+    await loginAs(email, false, pass);
   }
 }
-function loginAs(email, isNew){
+async function loginAs(email, isNew, pass){
   setSession(email);
   LS_KEY = dataKey(email);
   S = load();                       // 载入该账户的数据（新账户为默认数据）
@@ -4782,9 +4891,20 @@ function loginAs(email, isNew){
   const pa = pendingAction; pendingAction = null;
   toast(isNew ? '注册成功，欢迎使用美工接单助手' : '欢迎回来，'+(nm||''));
   if(typeof pa === 'function') setTimeout(pa, 260);
+  /* 云端同步（失败静默回退本地，不阻断使用） */
+  if(pass){
+    try{
+      if(await cloudEnsureSession(email, pass)){
+        const rows = await cloudPull();
+        if(cloudMergePull(rows)){ save(); applyTheme(); go(curPage, curTab); updateTopbar(); }
+        else { cloudPushSoon(); }
+      }
+    }catch(e){}
+  }
 }
 function authLogout(){
   if(!confirm('确定退出当前账户？本地数据已自动保存，下次用同一邮箱登录即可继续使用。')) return;
+  cloudSignOut();
   setSession(null);
   location.reload();
 }
@@ -4868,9 +4988,14 @@ window.addEventListener('error', e=>{
 });
 
 /* ================= 版本更新推送（部署到 GitHub + Vercel 后，改 APP_VERSION 与 RELEASE_NOTES 即可向用户弹窗说明更新内容） ================= */
-const APP_VERSION = '1.10.0';
+const APP_VERSION = '1.11.0';
 const SEEN_KEY = 'huishi_seen_version_v1';
 const RELEASE_NOTES = [
+  { v:'1.11.0', d:'2026-10-01', items:[
+    '新增云端同步（Supabase）：登录后订单 / 单主 / 模板 / 商品 / 费用设置 / 小票配置自动多设备保持一致，按时间戳冲突合并，新增设备自动拉取云端数据；顶栏出现「☁ 云端」标记表示已同步',
+    '登录 / 注册 / 改密码接入 Supabase Auth（邮箱+密码），与现有邮箱验证码体验并存；已注册的老账户首次登录会自动迁移到云端，本地数据作为离线缓存保留，任何同步异常都静默回退本地不丢数据',
+    '修改密码会同步更新云端账户密码；退出登录会同时注销云端会话',
+  ]},
   { v:'1.10.0', d:'2026-09-30', items:[
     '订单管理新增「导出 Excel」：可按当前搜索范围（时间段 / 关键词 / 仅看未交稿）导出筛选结果，也可一键导出全部订单，导出文件含单号、单主、联系方式、金额、日期、状态、备注等列，并附合计行',
   ]},
@@ -4988,6 +5113,15 @@ if(_sess && getAccounts()[_sess]){
 applyTheme();
 try{ updateTopbar(); }catch(err){ console.error(err); }
 go('home');
+/* 云端同步：尝试恢复已有 Supabase 会话；若已登录且会话有效，后台拉取合并云端数据 */
+cloudInit().then(async ()=>{
+  if(_cloudOn && _sess && getAccounts()[_sess]){
+    try{
+      const rows = await cloudPull();
+      if(cloudMergePull(rows)){ save(); applyTheme(); go(curPage, curTab); updateTopbar(); }
+    }catch(e){}
+  }
+});
 try{ initRcptImgDrag(); }catch(err){ console.error(err); }
 try{ initUnsavedGuard(); }catch(err){ console.error(err); }
 /* 版本更新开屏弹窗：仅当用户第一次见到当前版本时显示 */
