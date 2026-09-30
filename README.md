@@ -1,59 +1,27 @@
-# 绘事工作台
+# 美工接单助手（meigong-assistant）
 
-画师约稿管理工具，支持订单管理、排期日历、制品库、费用配置与数据概览。
+设计师 / 画师约稿管理网站，喜茶式手绘涂鸦视觉风格。主体是单文件 `index.html`（CSS/JS 全内联），零构建；另有 `api/` 下两个 Serverless 函数负责邮箱验证码。
 
-## 技术栈
+## 特性
+- 约稿订单管理、客户管理、作品仓库、收据小票、概览统计。
+- 自定义订单模板（字段可加「逻辑设置」：选某选项→显示后续题 / 跳转并聚焦指定题）。
+- 首页真实黄历（建除十二神 + 宜忌）与运势签。
+- 多套主题切换（含喜茶手绘风 `sketch`）。
+- 数据存浏览器 `localStorage`，**按登录邮箱分账户**；支持导出 / 导入 JSON 备份。
+- 注册与修改密码走**邮箱验证码**：线上部署时由后端接口发信与校验，密钥不落前端。
 
-- React 19 + TypeScript
-- Vite 8
-- Tailwind CSS 4
-- React Router
-- Recharts（图表）
-- date-fns（日期处理）
-- Lucide React（图标）
-- Supabase（云同步，按需加载）
-
-## 本地开发
-
+## 本地预览
 ```bash
-npm install
-npm run dev
+python -m http.server 8100 --directory .
+# 打开 http://127.0.0.1:8100/index.html
 ```
+> 注意：数据绑定到「源(origin)」。想保留数据请固定用同一个地址（同一端口 / 同一域名），不要双击 `file://` 打开。
 
-## 构建
+## 部署到 GitHub + Vercel
+1. **推到 GitHub**：把本目录推到你自己的仓库。
+2. **Vercel 导入**：打开 https://vercel.com/new → Import Git Repository → 选该仓库 → Framework 留空 → Deploy。
+3. **配置环境变量**（必须）：见 [DEPLOY.md](./DEPLOY.md)，至少填 `EMAILJS_SERVICE_ID`、`EMAILJS_TEMPLATE_ID`、`EMAILJS_PRIVATE_KEY`。
+4. **绑定自有域名**（可选）：Vercel 项目 → Settings → Domains → 添加域名，按提示加一条 `CNAME` 指向 `cname.vercel-dns.com`。
 
-```bash
-npm run build
-```
-
-构建产物输出到 `dist/` 目录。除 `index.html` 外会额外生成一份内容相同的 `404.html`，供 GitHub Pages 做 SPA 路由兜底。
-
-## 部署
-
-### Vercel（推荐）
-
-1. 将本项目推送到 GitHub。
-2. 登录 [Vercel](https://vercel.com)，点击 **Add New Project** 并选择该仓库。
-3. Vercel 会自动识别 Vite 项目，直接 Deploy 即可。
-4. 部署后会得到一个免费的 `*.vercel.app` 域名；若日后想用自己的域名，在 Settings → Domains 中绑定。
-
-> 项目已包含 `vercel.json`，用于支持 React Router 的前端路由刷新。
-
-### GitHub Pages（可选备份站点）
-
-1. 推送代码后，在仓库 **Settings → Pages → Source** 选择 **GitHub Actions**。
-2. 每次推送到 `main` 会触发 `.github/workflows/deploy.yml` 自动构建发布。
-3. 站点地址形如 `https://<用户名>.github.io/<仓库名>/`。构建时工作流会通过 `BASE_PATH` 环境变量自动注入子路径，无需手动改配置。
-
-## 云同步
-
-数据默认保存在浏览器 `localStorage`，刷新不会丢失。开启云同步后可跨设备使用：
-
-1. 在 [Supabase](https://supabase.com) 创建免费项目，进入 **SQL Editor** 执行「设置 → 云同步」里提供的建表 SQL。
-2. 在项目 **Settings → API** 复制 Project URL 和 anon public key。
-3. 回到本站「设置 → 云同步」填入并保存。
-4. 通过侧边栏「云同步」注册或登录邮箱账号，数据会自动备份；换设备登录即可拉取。
-
-Supabase SDK 采用动态导入，未配置云同步时不会下载，不占用首屏体积。
-
-> 部署上线后，记得把站点地址填到 Supabase 后台 **Authentication → URL Configuration → Site URL**，否则邮箱验证链接会跳回 localhost。
+## 数据说明
+数据仍存放在浏览器本地，**没有云端同步**。换设备 / 换浏览器数据不互通；请用顶栏「导出数据」定期备份。
