@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>美工接单助手 · 设计师接单管理</title>
+<title>小羊星 · 你想要的万能工具箱</title>
 <style>
 /* ============ 基础与手绘风 ============ */
 *{margin:0;padding:0;box-sizing:border-box}
@@ -829,7 +829,7 @@ input,select,textarea{font-size:13.5px !important;font-weight:500}
         <circle cx="15" cy="18" r="2" fill="#1c1c1c"/><circle cx="26" cy="18" r="2" fill="#1c1c1c"/>
         <path d="M15,26 Q20,29 25,26"/>
       </svg>
-      <div><div class="t">美工接单助手</div><div class="s">MEIGONG ASSISTANT</div></div>
+      <div><div class="t">小羊星</div><div class="s">LAMBSTAR</div></div>
     </div>
     <div class="seg">
       <span class="preset-chip sel" data-auth="login">登录</span>
@@ -879,7 +879,7 @@ input,select,textarea{font-size:13.5px !important;font-weight:500}
       <circle cx="15" cy="18" r="2" fill="#1c1c1c"/><circle cx="26" cy="18" r="2" fill="#1c1c1c"/>
       <path d="M15,26 Q20,29 25,26"/>
     </svg>
-    <div><div class="t">美工接单助手</div><div class="s">MEIGONG ASSISTANT</div></div>
+    <div><div class="t">小羊星</div><div class="s">LAMBSTAR</div></div>
   </div>
   <div class="nav-item" data-page="home"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3,9 L10,3 L17,9 M5,8 V16 H15 V8"/></svg>首页</div>
   <div class="nav-item order-add-btn"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10,4 V16 M4,10 H16"/></svg>添加订单</div>
@@ -1277,8 +1277,8 @@ input,select,textarea{font-size:13.5px !important;font-weight:500}
 
   <!-- ================= 全站页脚：版权与备案信息 ================= -->
   <footer id="site-footer" style="margin-top:40px;padding:18px 16px 30px;text-align:center;font-size:12px;color:var(--ink2, #9a9a9a);line-height:2">
-    <div>© 2026 美工接单助手 · 让接单更有条理</div>
-    <div id="footer-beian"><a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">ICP备XXXXXXXX号</a></div>
+    <div>© 2026 小羊星 · 你想要的万能工具箱。</div>
+    <div id="footer-beian"><a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">皖ICP备2025098726号-1</a></div>
   </footer>
 
 </main>
@@ -1476,7 +1476,15 @@ async function sbFetch(url, opts){
   }
   return fetch(url, o);   // 代理不可用：回退直连（海外用户/本机调试场景）
 }
-let _sb = null, _sbUser = null, _cloudOn = false;
+let _sb = null, _sbUser = null, _cloudOn = false, _isPro = null;
+/* _isPro：云同步付费标记（方案A·会员码手动开通）。null=未知（profiles 表无该列等查询失败时保持 null，前端放行，由 RLS 兜底）；true=已开通；false=未开通 */
+async function cloudFetchPro(){
+  if(!_sb || !_sbUser || !_sbUser.id){ _isPro = null; return; }
+  try{
+    const { data, error } = await _sb.from('profiles').select('is_pro').eq('id', _sbUser.id).maybeSingle();
+    _isPro = error ? null : !!(data && data.is_pro);
+  }catch(e){ _isPro = null; }
+}
 const _CLOUD_ARR = ['orders','clients','templates','products'];
 const _CLOUD_OBJ = ['profile','fee','receiptStyles','receiptMods'];
 function _cloudTs(k){ try{ const v = (S._cloud && S._cloud[k]); return v ? new Date(v).getTime() : 0; }catch(e){ return 0; } }
@@ -1488,7 +1496,7 @@ async function cloudInit(){
       auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:false, storageKey:'huishi_sb_auth_v1' }
     });
     const { data } = await _sb.auth.getSession();
-    if(data && data.session && data.session.user){ _sbUser = data.session.user; _cloudOn = true; _cloudRefreshBadge(); }
+    if(data && data.session && data.session.user){ _sbUser = data.session.user; _cloudOn = true; await cloudFetchPro(); _cloudRefreshBadge(); }
     return true;
   }catch(e){ _sb = null; _cloudOn = false; return false; }
 }
@@ -1505,7 +1513,9 @@ async function cloudEnsureSession(email, password){
       if(r.error) return false;
     }
     _sbUser = (r.data.session && r.data.session.user) || r.data.user || _sbUser;
-    _cloudOn = true; _cloudRefreshBadge();
+    _cloudOn = true;
+    await cloudFetchPro();
+    _cloudRefreshBadge();
     return true;
   }catch(e){ return false; }
 }
@@ -1516,7 +1526,9 @@ async function cloudTryLogin(email, password){
     const r = await _sb.auth.signInWithPassword({ email, password });
     if(r.error || !r.data || !r.data.session){ _cloudOn = false; return false; }
     _sbUser = r.data.session.user || null;
-    _cloudOn = !!_sbUser; _cloudRefreshBadge();
+    _cloudOn = !!_sbUser;
+    await cloudFetchPro();
+    _cloudRefreshBadge();
     return !!_sbUser;
   }catch(e){ _cloudOn = false; return false; }
 }
@@ -1530,8 +1542,8 @@ function localHasData(){
     (S.profile && S.profile.nick && S.profile.nick !== dnick)
   );
 }
-function cloudSignOut(){ try{ if(_sb) _sb.auth.signOut(); }catch(e){} _sbUser=null; _cloudOn=false; _cloudRefreshBadge(); }
-function _cloudRefreshBadge(){ const el=$('#tb-cloud'); if(el) el.classList.toggle('on', _cloudOn); }
+function cloudSignOut(){ try{ if(_sb) _sb.auth.signOut(); }catch(e){} _sbUser=null; _cloudOn=false; _isPro=null; _cloudRefreshBadge(); }
+function _cloudRefreshBadge(){ const el=$('#tb-cloud'); if(el) el.classList.toggle('on', _cloudOn && _isPro !== false); }
 async function cloudPull(){
   if(!_cloudOn || !_sb || !_sbUser) return null;
   try{
@@ -1542,6 +1554,7 @@ async function cloudPull(){
 }
 async function cloudPush(){
   if(!_cloudOn || !_sb || !_sbUser) return;
+  if(_isPro === false) return;        // 未开通云同步（付费功能）：不上传（服务端 RLS 同时兜底）
   if(S.cloudSync === false) return;   // 用户关闭云同步：数据仅存本地
   try{
     const now = new Date().toISOString();
@@ -1587,7 +1600,7 @@ function cloudMergePull(rows){
 }
 let _cloudPushTimer = null;
 function cloudPushSoon(){
-  if(!_cloudOn || S.cloudSync === false) return;
+  if(!_cloudOn || _isPro === false || S.cloudSync === false) return;
   if(_cloudPushTimer) clearTimeout(_cloudPushTimer);
   _cloudPushTimer = setTimeout(()=>{ cloudPush().catch(()=>{}); }, 700);
 }
@@ -1744,7 +1757,7 @@ function renderHome(){
   const now = new Date();
   const wd = ['日','一','二','三','四','五','六'][now.getDay()];
   $('#home-date').textContent = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日`;
-  $('#home-week').textContent = `星期${wd} · 美工接单助手`;
+  $('#home-week').textContent = `星期${wd} · 小羊星`;
   const tick = ()=>{
     const t = new Date();
     $('#home-clock').textContent = [t.getHours(),t.getMinutes(),t.getSeconds()].map(x=>String(x).padStart(2,'0')).join(':');
@@ -2278,17 +2291,31 @@ function renderProfileInfo(){
   };
   /* 云同步开关与清除云端数据 */
   const syncOn = ()=> S.cloudSync !== false;
+  const showProModal = ()=>{
+    modal(`<div style="padding:6px">
+        <h3 style="margin:0 0 10px">云同步为付费功能</h3>
+        <p class="note" style="text-align:left;color:var(--ink2);line-height:1.9">云同步可将订单、单主、模板等数据多设备保持一致。<b>当前账户尚未开通</b>，如需开通请联系站长（付款后由站长手动开通，开通后重新登录即可生效）。</p>
+        <div class="m-actions" style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn sm solid" onclick="closeModal()">知道了</button></div>
+      </div>`);
+  };
   const renderCloudCard = ()=>{
     const btn = $('#p-cloud-toggle'), st = $('#p-cloud-state');
     if(!btn || !st) return;
+    if(_isPro === false){
+      btn.textContent = '开通云同步';
+      btn.className = 'btn sm solid';
+      st.textContent = '未开通（云同步为付费功能，点右侧按钮了解开通方式）';
+      return;
+    }
     btn.textContent = syncOn() ? '关闭云同步' : '开启云同步';
     btn.className = 'btn sm ' + (syncOn() ? 'ghost' : 'solid');
     st.textContent = syncOn()
-      ? (_cloudOn ? '已连接云端，自动同步中' : '已开启（尚未连接云端，重新登录后生效）')
+      ? (_cloudOn ? (_isPro === true ? '已连接云端，自动同步中' : '已连接云端，自动同步中') : '已开启（尚未连接云端，重新登录后生效）')
       : '已关闭，数据仅保存在本浏览器';
   };
   $('#p-cloud-toggle').onclick = ()=>{
     if(needLogin()) return;
+    if(_isPro === false){ showProModal(); return; }
     S.cloudSync = !syncOn();
     save();
     renderCloudCard();
@@ -2301,6 +2328,7 @@ function renderProfileInfo(){
   };
   $('#p-cloud-clear').onclick = ()=>{
     if(needLogin()) return;
+    if(_isPro === false){ showProModal(); return; }
     if(!_sb || !_sbUser){ toast('尚未连接云端，请先开启云同步并重新登录'); return; }
     modal(`<div style="padding:6px">
         <h3 style="margin:0 0 10px">清除云端数据</h3>
@@ -4065,7 +4093,7 @@ let rcCurrent = null, rcAccentTouched = false, rcEditorInit = false;
 /* ================= 小票模块化引擎：6 大模块（标题/票头/商品信息/费用总结/会员信息/票尾），可自定义排序 ================= */
 function defaultMods(){ return {
   order:['title','head','items','summary','member','footer'],
-  title:{ mode:'fixed', text:'', fixed:'美工接单助手', fixedTpls:['感谢接单 · 期待成片'], img:'', imgW:100, imgH:70, imgX:0, imgY:0 },
+  title:{ mode:'fixed', text:'', fixed:'小羊星', fixedTpls:['感谢接单 · 期待成片'], img:'', imgW:100, imgH:70, imgX:0, imgY:0 },
   head:{ client:true, id:true, orderTime:true, planTime:false, dueTime:false, plan:false, artist:false, align:'left' },
   summary:{ depMode:'pct', depVal:50,
     note:'亲爱的单主，您可以全款支付，也可以先支付定金{deposit}元，剩余尾款{balance}元需要在发送定稿前支付。',
@@ -4081,7 +4109,7 @@ function modsOf(st){
   Object.keys(dm).forEach(k=>{ if(m[k]==null) m[k] = dm[k]; });
   if(!Array.isArray(m.order) || m.order.length!==6) m.order = dm.order.slice();
   if(m.head && m.head.align == null) m.head.align = 'left';
-  if(m.title && m.title.mode==='input'){ m.title.mode='fixed'; if(!m.title.fixed) m.title.fixed = m.title.text || '美工接单助手'; }
+  if(m.title && m.title.mode==='input'){ m.title.mode='fixed'; if(!m.title.fixed) m.title.fixed = m.title.text || '小羊星'; }
   if(m.title){ if(m.title.imgX==null) m.title.imgX=0; if(m.title.imgY==null) m.title.imgY=0; }
   return m;
 }
@@ -4107,9 +4135,9 @@ function buildReceiptView(st, raw){
   const v = {mods};
   const t = mods.title;
   v.titleImg = t.img ? {src:t.img, w:Math.max(10,Math.min(100,+t.imgW||100)), h:Math.max(20,Math.min(400,+t.imgH||70)), x:Math.max(-200,Math.min(200,+(+t.imgX||0))), y:Math.max(-160,Math.min(400,+(+t.imgY||0))), styleId: st.id} : null;
-  v.titleText = t.mode==='plan' ? (raw.planTitle || t.text || S.profile.shop || '美工接单助手')
-    : t.mode==='fixed' ? (t.fixed || (t.fixedTpls && t.fixedTpls[0]) || t.text || S.profile.shop || '美工接单助手')
-    : (t.text || S.profile.shop || '美工接单助手');
+  v.titleText = t.mode==='plan' ? (raw.planTitle || t.text || S.profile.shop || '小羊星')
+    : t.mode==='fixed' ? (t.fixed || (t.fixedTpls && t.fixedTpls[0]) || t.text || S.profile.shop || '小羊星')
+    : (t.text || S.profile.shop || '小羊星');
   const h = mods.head, hl = [];
   if(h.client)    hl.push(['单主', raw.client||'—']);
   if(h.id)        hl.push(['单号', raw.orderId||'—']);
@@ -4998,7 +5026,7 @@ async function loginAs(email, isNew, pass){
   updateTopbar();
   go(curPage, curTab);
   const pa = pendingAction; pendingAction = null;
-  toast(isNew ? '注册成功，欢迎使用美工接单助手' : '欢迎回来，'+(nm||''));
+  toast(isNew ? '注册成功，欢迎使用小羊星' : '欢迎回来，'+(nm||''));
   if(typeof pa === 'function') setTimeout(pa, 260);
   /* 云端同步（失败静默回退本地，不阻断使用；用户关闭云同步时不做任何云端传输） */
   if(pass && S.cloudSync !== false){
@@ -5034,7 +5062,7 @@ function exportData(){
     const a = document.createElement('a');
     const ts = new Date().toISOString().slice(0,10);
     a.href = URL.createObjectURL(blob);
-    a.download = '美工接单助手_数据备份_' + ts + '.json';
+    a.download = '小羊星_数据备份_' + ts + '.json';
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(a.href);
     toast('数据已导出为 JSON 文件');
@@ -5047,7 +5075,7 @@ function importData(file){
     let data;
     try{ data = JSON.parse(reader.result); }catch(e){ alert('文件不是有效的 JSON，无法导入'); return; }
     if(!data || typeof data!=='object' || !data.profile || !Array.isArray(data.orders)){
-      alert('文件内容不是美工接单助手备份，无法导入'); return;
+      alert('文件内容不是小羊星备份，无法导入'); return;
     }
     modal(`<div style="padding:6px">
         <h3 style="margin:0 0 10px">导入数据</h3>
@@ -5115,6 +5143,7 @@ const RELEASE_NOTES = [
     '换电脑 / 换浏览器用同一邮箱登录即可同步全部数据（不再误报「账户不存在」），并修复了新设备登录可能覆盖云端数据的风险',
     '个人设置 → 用户资料 新增「云同步」开关：关闭后数据仅保存在本地浏览器，云端不再更新；重新开启后自动以本地数据为准上传云端',
     '新增「清除云端数据」：仅删除服务器上该账户的数据，不注销账户、不影响本地数据；清除前会引导先导出备份，并经两次确认，清除后云同步自动关闭',
+    '云同步升级为付费功能：新用户需联系站长开通后使用，已开通用户不受影响；未开通时数据仍完整保存在本地',
     '修改密码会同步更新云端账户密码；退出登录会同时注销云端会话',
     '新增「更新日志」页（个人设置顶部标签页）：功能更新与问题修复在此完整展示',
   ]},
