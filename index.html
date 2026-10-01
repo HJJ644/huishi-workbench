@@ -72,6 +72,20 @@ html[data-theme="minimal"] .btn:hover{transform:none}
 html[data-theme="minimal"] .card:hover{transform:none}
 html[data-theme="sweet"] .card{box-shadow:4px 5px 0 rgba(217,123,166,.12)}
 html[data-theme="sweet"] .nav-item:hover{transform:rotate(1deg)}
+html[data-theme="sky"]{
+  --paper:#e8f3fc;--card:#ffffff;--ink:#33566e;--ink2:#6d8ba1;--ink3:#a3bccd;
+  --line:#cfe4f4;--accent:#5aaee6;--bar:#8ec3ea;
+  --font-main:"Yuanti SC","YouYuan","Microsoft YaHei",sans-serif;
+  --r-hand:22px;--r-hand2:22px;--r-hand3:999px;
+}
+/* 晴空甜梦：参考软糖风生活台的渐变背景 + 大圆角软卡片 + 胶囊按钮（主色调淡蓝） */
+html[data-theme="sky"] body{background:linear-gradient(180deg,#d5eafb 0%,#eaf5fe 45%,#e2f1fc 100%) fixed}
+html[data-theme="sky"] .card{border:2px solid #b9dcf5;box-shadow:0 6px 18px rgba(90,174,230,.14);border-radius:22px}
+html[data-theme="sky"] .btn{border:2px solid #b9dcf5;box-shadow:0 3px 8px rgba(90,174,230,.12)}
+html[data-theme="sky"] .btn.solid{background:linear-gradient(135deg,#7cc0ef,#5aaee6);border-color:transparent;color:#fff}
+html[data-theme="sky"] .nav-item.active{background:rgba(124,192,239,.16)}
+html[data-theme="sky"] .nav-item:hover{transform:rotate(1deg)}
+html[data-theme="sky"] input,html[data-theme="sky"] select,html[data-theme="sky"] textarea{border:1.5px solid #cfe4f4;background:#fbfdff;border-radius:14px}
 html[data-theme="night"] .card{box-shadow:3px 4px 0 rgba(0,0,0,.4)}
 /* 背景手绘线条插画 */
 #doodles{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.55}
@@ -900,6 +914,7 @@ input,select,textarea{font-size:13.5px !important;font-weight:500}
       <span class="tb-avatar" id="tb-avatar">绘</span>
       <span class="tb-email" id="tb-email">—</span>
       <span id="tb-cloud"></span>
+      <button class="btn sm ghost" id="tb-sync" style="display:none;margin-left:6px;font-size:11px;padding:3px 10px" title="立即把当前数据手动推送到云端">手动同步</button>
     </div>
     <div class="tb-actions">
       <button class="btn sm solid" id="tb-login">登录 / 注册</button>
@@ -1426,8 +1441,24 @@ function save(){
   let localOk = true;
   try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){ localOk = false; }
   if(!localOk) toast('⚠️ 本地存储写入失败（浏览器空间可能已满），请立即「导出数据」备份');
+  autoBackupMaybe();
   cloudPushSoon();
 }
+/* ---- 每 24 小时静默自动备份一份到浏览器 localStorage（无需用户同意、不提醒、覆盖上一次） ---- */
+const AUTO_BK_KEY = 'huishi_autobackup_v1';
+const AUTO_BK_MS  = 24 * 3600 * 1000;
+let _autoBkTs = 0;
+try{ const _b = JSON.parse(localStorage.getItem(AUTO_BK_KEY) || 'null'); if(_b && _b.ts) _autoBkTs = _b.ts; }catch(e){}
+function autoBackupMaybe(){
+  try{
+    if(!getSession()) return;
+    const now = Date.now();
+    if(now - _autoBkTs < AUTO_BK_MS) return;
+    _autoBkTs = now;
+    localStorage.setItem(AUTO_BK_KEY, JSON.stringify({ ts: now, email: getSession(), data: S }));
+  }catch(e){}
+}
+setInterval(autoBackupMaybe, 3600 * 1000);   // 长时间挂着页面也能按时备份
 const $ = s=>document.querySelector(s);
 const $$ = s=>[...document.querySelectorAll(s)];
 const esc = s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -1564,6 +1595,22 @@ function _cloudRefreshBadge(){
     el.style.color = 'var(--ink2)';
     el.title = '云同步未开启，数据仅保存在本浏览器（可在个人设置 → 用户资料中开启）';
   }
+  /* 手动同步按钮：仅在自动云同步开启（实际同步中）时可用可见 */
+  const syncBtn = $('#tb-sync');
+  if(syncBtn){
+    syncBtn.style.display = on ? '' : 'none';
+    syncBtn.disabled = false;
+  }
+}
+async function manualCloudSync(){
+  if(!(!!getSession() && S.cloudSync !== false && _cloudOn && _isPro !== false)){ toast('请先开启云同步'); return; }
+  const btn = $('#tb-sync');
+  if(btn){ btn.disabled = true; btn.textContent = '同步中…'; }
+  try{
+    await cloudPush();
+    toast('已手动同步到云端');
+  }catch(e){ toast('手动同步失败，稍后自动重试'); }
+  if(btn){ btn.disabled = false; btn.textContent = '手动同步'; }
 }
 async function cloudPull(){
   if(!_cloudOn || !_sb || !_sbUser) return null;
@@ -2393,12 +2440,8 @@ const THEMES = [
   {id:'sketch',  name:'手绘线条', desc:'喜茶式手绘涂鸦 · 黑白灰 · 不规则圆角', bg:'#f7f7f5', bd:'2px solid #1c1c1c', rd:'255px 15px 225px 15px/15px 225px 15px 255px', fg:'#1c1c1c', ft:'inherit'},
   {id:'ink',     name:'古风水墨', desc:'宣纸米白 · 宋体衬线 · 直角细边 · 朱砂点缀', bg:'#f5f1e6', bd:'1.5px solid #332e26', rd:'3px', fg:'#332e26', ft:'"Songti SC","SimSun",serif'},
   {id:'sweet',   name:'甜美可爱', desc:'奶油粉调 · 圆体字 · 胶囊圆角 · 爱心涂鸦', bg:'#fdf6f8', bd:'2px solid #4a3b42', rd:'22px', fg:'#4a3b42', ft:'"Yuanti SC","YouYuan",sans-serif'},
-  {id:'vintage', name:'复古印刷', desc:'旧纸黄调 · 双线框 · 报刊排版感', bg:'#f4efe2', bd:'3px double #6b5f45', rd:'5px', fg:'#3b3427', ft:'"Songti SC","SimSun",serif'},
-  {id:'minimal', name:'极简商务', desc:'细线直角 · 无装饰插画 · 干净利落', bg:'#f7f8f9', bd:'1px solid #e5e7e8', rd:'8px', fg:'#1c1c1c', ft:'inherit'},
-  {id:'night',   name:'深夜炭黑', desc:'暗色护眼 · 高对比浅字 · 星月涂鸦', bg:'#232326', bd:'2px solid #4a4a4e', rd:'14px', fg:'#ececea', ft:'inherit'},
-  {id:'republic',name:'复古民国', desc:'旧纸张米黄 · 楷体 · 双描边方框 · 老上海气质', bg:'#f8f1e1', bd:'1.5px solid #4a4033', rd:'3px', fg:'#3d3327', ft:'"Kaiti SC","STKaiti","KaiTi","SimSun",serif'},
-  {id:'stamp',   name:'邮票风',   desc:'邮资齿孔边 · 宋体 · 邮票感边框 · 文艺集邮', bg:'#fffdf6', bd:'14px solid #f1ede2', rd:'0', fg:'#33302a', ft:'"Songti SC","SimSun",serif'},
-  {id:'journal', name:'手帐风',   desc:'点阵纸纹 · 圆体 · 和纸胶带贴纸 · 拼贴手账', bg:'#fffef9', bd:'2px dashed #c9b795', rd:'12px', fg:'#4a3b2c', ft:'"Yuanti SC","YouYuan",sans-serif'}
+  {id:'sky',     name:'晴空甜梦', desc:'淡蓝云朵 · 圆体字 · 软糖卡片 · 渐变晴空', bg:'#e8f3fc', bd:'2px solid #8ec3ea', rd:'22px', fg:'#33566e', ft:'"Yuanti SC","YouYuan",sans-serif'},
+  {id:'minimal', name:'极简商务', desc:'细线直角 · 无装饰插画 · 干净利落', bg:'#f7f8f9', bd:'1px solid #e5e7e8', rd:'8px', fg:'#1c1c1c', ft:'inherit'}
 ];
 const DOODLES = {
 sketch:`<svg viewBox="0 0 1440 900" fill="none" stroke="#d8d8d4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" preserveAspectRatio="xMidYMid slice">
@@ -2479,10 +2522,21 @@ journal:`<svg viewBox="0 0 1440 900" fill="none" stroke="#cbb79a" stroke-width="
   <g transform="translate(1280,640)"><path d="M0,40 Q0,0 40,0 Q80,0 80,40 Q80,80 40,80 Q0,80 0,40 Z"/><path d="M22,40 q18,-18 38,0 M22,72 q18,18 38,0" opacity=".6"/></g>
   <g transform="translate(900,720)"><path d="M20,40 Q0,40 2,30 Q4,20 16,22 Q18,8 34,8 Q50,8 52,22 Q66,20 68,30 Q70,40 58,40 Z"/></g>
   <g transform="translate(470,640)"><path d="M0,0 L70,40 L0,80 L40,40 Z" opacity=".6"/></g>
+</svg>`,
+sky:`<svg viewBox="0 0 1440 900" fill="none" stroke="#b9dcf5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" preserveAspectRatio="xMidYMid slice">
+  <g transform="translate(110,130)"><path d="M18,42 Q2,42 4,30 Q6,20 18,22 Q20,8 36,8 Q52,8 54,22 Q68,20 70,30 Q72,42 58,42 Z"/><path d="M30,52 Q32,58 38,60 Q32,62 30,68 Q28,62 22,60 Q28,58 30,52" stroke-width="2"/></g>
+  <g transform="translate(1180,100) rotate(10)"><path d="M20,0 L25,14 L40,15 L28,25 L33,40 L20,31 L7,40 L12,25 L0,15 L15,14 Z"/></g>
+  <g transform="translate(640,70)"><path d="M10,22 Q12,28 18,30 Q12,32 10,38 Q8,32 2,30 Q8,28 10,22 Z"/><path d="M34,6 Q36,12 42,14 Q36,16 34,22 Q32,16 26,14 Q32,12 34,6 Z"/></g>
+  <g transform="translate(1240,430)"><path d="M14,10 Q14,2 22,2 Q26,2 28,6 Q30,2 34,2 Q42,2 42,10 Q42,20 28,30 Q14,20 14,10 Z"/></g>
+  <g transform="translate(200,470)"><path d="M10,30 Q0,30 2,21 Q4,14 13,16 Q14,6 26,6 Q38,6 39,16 Q50,14 52,23 Q54,30 44,30 Z" opacity=".8"/></g>
+  <g transform="translate(760,760)"><path d="M16,8 Q16,0 24,0 Q28,0 30,4 Q32,0 36,0 Q44,0 44,8 Q44,18 30,28 Q16,18 16,8 Z" opacity=".7"/></g>
+  <g transform="translate(980,180) rotate(-12)"><path d="M0,14 Q8,0 24,4 Q40,8 36,22 Q32,34 16,30 Q4,27 0,14 Z"/><path d="M36,22 Q46,26 44,36" stroke-width="2"/></g>
 </svg>`
 };
 function applyTheme(){
-  const t = S.theme || 'sketch';
+  let t = S.theme || 'sketch';
+  /* 已下架主题（邮票风/手帐风/复古民国/深夜炭黑/复古印刷）自动回落手绘线条 */
+  if(!THEMES.some(x=>x.id===t)) t = 'sketch';
   document.documentElement.dataset.theme = t;
   document.documentElement.dataset.bg = '';
   $('#doodles').innerHTML = DOODLES[t] || '';
@@ -2494,7 +2548,7 @@ function renderAppearance(){
   const cur = S.theme || 'sketch';
   $('#appear-grid').innerHTML = THEMES.map(t=>`
     <div class="card theme-card ${t.id===cur?'sel':''}" onclick="setTheme('${t.id}')">
-      <div class="theme-demo" style="--t-bg:${t.bg};--t-bd:${t.bd};--t-rd:${t.rd};--t-fg:${t.fg};--t-ft:${t.ft}">美工</div>
+      <div class="theme-demo" style="--t-bg:${t.bg};--t-bd:${t.bd};--t-rd:${t.rd};--t-fg:${t.fg};--t-ft:${t.ft}">小羊</div>
       <b>${t.name}</b>
       <div class="note">${t.desc}</div>
     </div>`).join('');
@@ -3028,7 +3082,6 @@ function fieldRowHTML(f,i){
         </span>
       </div>
       <input class="tf-sub tf-opts${needOpts?'':' tf-hide'}" value="${esc((f.options||[]).join(','))}" placeholder="候选项（逗号分隔），如：微信,支付宝,淘宝">
-      <input class="tf-sub tf-remark" value="${esc(f.remark||'')}" placeholder="备注（选填）：给客户的填写说明">
     </div>
   </div>`;
 }
@@ -3064,7 +3117,6 @@ function teRenderFields(){
     });
     row.querySelector('.tf-name').addEventListener('input', e=>{ _te.fields[i].name = e.target.value; });
     row.querySelector('.tf-req input').addEventListener('change', e=>{ _te.fields[i].required = e.target.checked; });
-    row.querySelector('.tf-remark').addEventListener('input', e=>{ _te.fields[i].remark = e.target.value; });
     const optsEl = row.querySelector('.tf-opts');
     if(optsEl) optsEl.addEventListener('input', e=>{ _te.fields[i].options = parseOpts(e.target.value); });
     row.querySelector('.tf-type').addEventListener('change', e=>{
@@ -3098,7 +3150,6 @@ function teSyncFields(){
     f.name = row.querySelector('.tf-name').value;
     f.type = row.querySelector('.tf-type').value;
     f.required = row.querySelector('.tf-req input').checked;
-    f.remark = row.querySelector('.tf-remark').value;
     const o = row.querySelector('.tf-opts'); if(o) f.options = parseOpts(o.value);
   });
 }
@@ -5089,6 +5140,30 @@ function exportData(){
     toast('数据已导出为 JSON 文件');
   }catch(e){ alert('导出失败：' + e.message); }
 }
+/* 合并导入：数组型（订单/单主/商品/模板/草稿）按 id 并集（同 id 以文件为准），对象/标量以文件为准（浅合并） */
+function mergeImportData(data){
+  Object.keys(data).forEach(k=>{
+    if(k === '_cloud') return;                     // 同步时间戳不导入，交给云同步逻辑
+    if(k === 'profile'){                           // 邮箱始终归属当前登录账户
+      const p = Object.assign({}, S.profile || {}, data.profile || {});
+      p.email = getSession();
+      S.profile = p;
+      return;
+    }
+    const incoming = data[k], cur = S[k];
+    if(Array.isArray(incoming)){
+      const base = Array.isArray(cur) ? cur : [];
+      const map = {};
+      base.forEach(x=>{ if(x && x.id != null) map[x.id] = x; });
+      incoming.forEach(x=>{ if(x && x.id != null) map[x.id] = x; });
+      S[k] = Object.keys(map).map(id=>map[id]);
+    }else if(incoming && typeof incoming === 'object' && cur && typeof cur === 'object' && !Array.isArray(cur)){
+      S[k] = Object.assign({}, cur, incoming);
+    }else if(incoming !== undefined){
+      S[k] = incoming;
+    }
+  });
+}
 function importData(file){
   const reader = new FileReader();
   reader.onload = ()=>{
@@ -5100,22 +5175,33 @@ function importData(file){
     }
     modal(`<div style="padding:6px">
         <h3 style="margin:0 0 10px">导入数据</h3>
-        <p class="note" style="text-align:left;color:var(--ink2)">将用文件中的数据<b>覆盖</b>当前账户的全部内容（订单、单主、小票样式、商品、设置等）。此操作不可撤销，建议先点「导出数据」做好备份。</p>
-        <div class="row" style="margin-top:16px;justify-content:flex-end;gap:8px">
+        <p class="note" style="text-align:left;color:var(--ink2)">请选择导入方式：</p>
+        <p class="note" style="text-align:left;color:var(--ink2)"><b>覆盖导入</b>：用文件中的数据<b>完全替换</b>当前账户的全部内容（订单、单主、小票样式、商品、设置等），此操作不可撤销。</p>
+        <p class="note" style="text-align:left;color:var(--ink2)"><b>合并导入</b>：文件与当前数据<b>合并</b>——订单 / 单主 / 商品 / 模板按单号取并集（相同单号以文件为准），设置项以文件为准。适合把另一份备份并入现有数据。</p>
+        <div class="row" style="margin-top:16px;justify-content:flex-end;gap:8px;flex-wrap:wrap">
           <button class="btn sm ghost" onclick="closeModal()">取消</button>
-          <button class="btn sm solid" id="do-import">确认导入</button>
+          <button class="btn sm ghost" id="do-import-merge">合并导入</button>
+          <button class="btn sm solid" id="do-import">覆盖导入</button>
         </div>
       </div>`, (root)=>{
-      root.querySelector('#do-import').onclick = ()=>{
-        S = data;
-        if(S.profile) S.profile.email = getSession();
-        save();
-        closeModal();
-        applyTheme();
-        go('home');
-        toast('数据导入完成');
-      };
-    });
+        const finish = (msg)=>{
+          save();
+          closeModal();
+          applyTheme();
+          go('home');
+          updateTopbar();
+          toast(msg);
+        };
+        root.querySelector('#do-import').onclick = ()=>{
+          S = data;
+          if(S.profile) S.profile.email = getSession();
+          finish('数据已覆盖导入');
+        };
+        root.querySelector('#do-import-merge').onclick = ()=>{
+          mergeImportData(data);
+          finish('数据已合并导入');
+        };
+      });
   };
   reader.readAsText(file);
 }
@@ -5130,6 +5216,7 @@ $('#auth-cancel').onclick = ()=>{ pendingAction = null; authHide(); };
 $('#tb-login').onclick = authShow;
 $('#tb-export').onclick = exportData;
 $('#tb-import').onclick = ()=> $('#import-file').click();
+$('#tb-sync').onclick = manualCloudSync;
 $('#import-file').onchange = e=>{ if(e.target.files[0]) importData(e.target.files[0]); e.target.value=''; };
 $('#tb-logout').onclick = authLogout;
 /* 点头像 / 邮箱 → 跳到 设置-用户资料 */
@@ -5232,6 +5319,7 @@ if(_sess && getAccounts()[_sess]){
 // 未登录也照常进入工作台（游客浏览模式），使用功能时再要求登录
 applyTheme();
 try{ updateTopbar(); }catch(err){ console.error(err); }
+try{ autoBackupMaybe(); }catch(err){ console.error(err); }
 go('home');
 /* 云端同步：尝试恢复已有 Supabase 会话；若已登录且会话有效，后台拉取合并云端数据 */
 cloudInit().then(async ()=>{
