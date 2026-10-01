@@ -30,6 +30,11 @@ module.exports = async (req, res) => {
   };
   // supabase-js 对已登录请求自带 Authorization: Bearer <user_jwt>，必须透传（RLS 依赖）
   headers['Authorization'] = req.headers['authorization'] || ('Bearer ' + SB_KEY);
+  // 透传 PostgREST 语义头：upsert 依赖 Prefer: resolution=merge-duplicates，丢了会退化为纯 INSERT 撞主键 409
+  ['prefer', 'accept', 'content-profile', 'accept-profile', 'range'].forEach(h => {
+    const v = req.headers[h];
+    if (v) headers[h] = Array.isArray(v) ? v.join(', ') : v;
+  });
 
   let body;
   if (req.method !== 'GET' && req.method !== 'HEAD') {
