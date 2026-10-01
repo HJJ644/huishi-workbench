@@ -1057,15 +1057,16 @@ input,select,textarea{font-size:13.5px !important;font-weight:500}
         </div>
       </div>
       <div class="card" style="max-width:620px;margin-top:14px">
-        <div class="section-h" style="margin-top:0">邮箱验证码服务（后端 + EmailJS）</div>
-        <p class="note" style="text-align:left;line-height:1.8"><b>线上部署时不用填密钥</b>：会直接调用同域后端接口 <code>/api/send-code</code>，EmailJS 密钥存在服务端环境变量里，验证码比对也在服务端完成，页面上没有任何密钥。下面三个密钥框只在<b>本地直发模式</b>需要（接口地址填 <code>off</code> 可强制本地直发）。<br>EmailJS 免费注册 <b>emailjs.com</b>：添加 SMTP 服务得 Service ID、建模板（收件人 <code>{{to_email}}</code>、正文 <code>{{code}}</code>）得 Template ID、Account 页复制 Public Key。<b>逐步操作指引见「帮助与反馈 → ⑦ 邮箱验证码配置教程」。</b></p>
-        <label class="f">后端接口地址（留空 = 线上自动用 /api） <input id="p-ejs-api" placeholder="/api"></label>
-        <label class="f">Service ID（仅本地直发用） <input id="p-ejs-sid" placeholder="service_xxxxxxx"></label>
-        <label class="f">Template ID <input id="p-ejs-tid" placeholder="template_xxxxxxx"></label>
-        <label class="f">Public Key <input id="p-ejs-pk" placeholder="xxxxxxxxxxxxxxxx"></label>
-        <div class="m-actions" style="display:flex;justify-content:flex-end;margin-top:10px;gap:8px">
-          <button class="btn sm ghost" id="p-ejs-test">发送测试邮件</button>
-          <button class="btn solid sm" id="p-ejs-save">保存配置</button>
+        <div class="section-h" style="margin-top:0">云同步</div>
+        <p class="note" style="text-align:left;line-height:1.8">开启后，订单 / 单主 / 模板 / 商品 / 费用与小票设置会自动保存到云端，换设备登录同一邮箱即可同步；<b>关闭后数据仅保存在本浏览器</b>，云端不再更新。</p>
+        <div class="row" style="justify-content:space-between;align-items:center;margin-top:10px;gap:10px;flex-wrap:wrap">
+          <div style="font-size:14px">当前状态：<b id="p-cloud-state">—</b></div>
+          <button class="btn sm solid" id="p-cloud-toggle">开启云同步</button>
+        </div>
+        <div class="section-h" style="margin-top:16px">危险操作</div>
+        <p class="note" style="text-align:left;line-height:1.8">清除云端数据<b>只删除服务器上的数据</b>，不会注销账户，也不影响本地数据。清除前请先「导出数据」做好备份。</p>
+        <div class="m-actions" style="display:flex;justify-content:flex-end;margin-top:10px">
+          <button class="btn sm ghost" id="p-cloud-clear">清除云端数据</button>
         </div>
       </div>
     </div>
@@ -1120,8 +1121,8 @@ input,select,textarea{font-size:13.5px !important;font-weight:500}
         </div>
         <div class="card help-card">
           <h4>⑤ 数据安全与备份</h4>
-          <div class="help-step"><span class="help-num">1</span><span>所有数据保存在<b>本浏览器</b>中，按登录邮箱隔离。换电脑 / 换浏览器前，先点右上角「<b>导出数据</b>」下载 JSON 备份文件；在新设备上用「<b>导入数据</b>」恢复。</span></div>
-          <div class="help-shot">位置：右上角头像旁 <b>导出数据 / 导入数据</b></div>
+          <div class="help-step"><span class="help-num">1</span><span>开启「<b>云同步</b>」（个人设置 → 用户资料）后，数据会自动保存到云端，换设备登录同一邮箱即可同步；关闭时数据仅保存在本浏览器，按登录邮箱隔离。也可以随时点右上角「<b>导出数据</b>」下载 JSON 备份文件，在新设备上用「<b>导入数据</b>」恢复。</span></div>
+          <div class="help-shot">位置：右上角头像旁 <b>导出数据 / 导入数据</b>；云同步开关在 个人设置 → <b>用户资料</b></div>
           <div class="help-step"><span class="help-num">2</span><span>建议养成习惯：每次大批量录入后导出一份备份。清除浏览器缓存 / 网站数据会清空本地记录，请务必先备份。</span></div>
         </div>
         <div class="card help-card">
@@ -1131,19 +1132,9 @@ input,select,textarea{font-size:13.5px !important;font-weight:500}
           <div class="help-step"><span class="help-num">Q</span><span><b>费用怎么算？</b>商品小计 × 用途系数，再加价急 / 不公开等系数费用；支付平台按比例扣手续费，应付 = 总额 − 优惠 + 附加费。</span></div>
         </div>
         <div class="card help-card" style="grid-column:1/-1">
-          <h4>⑦ 邮箱验证码配置教程（EmailJS，约 5 分钟）</h4>
-          <div class="help-step"><span class="help-num">1</span><span>注册 EmailJS 账号：打开 <b>emailjs.com</b> → 点右上角 <b>Sign Up</b>（可用 Google / GitHub 直接登录）→ 免费档每月可发 <b>200 封</b>，验证码场景完全够用。</span></div>
-          <div class="help-shot">位置：浏览器打开 <b>https://www.emailjs.com</b> → Sign Up</div>
-          <div class="help-step"><span class="help-num">2</span><span>添加发信邮箱服务：登录后进入控制台左侧 <b>Email Services</b> → <b>Add New Service</b> → 选择你的邮箱类型。<b>Gmail / Outlook</b> 直接选对应图标并授权登录即可；<b>QQ / 163 等国内邮箱</b>选 <b>SMTP</b>，先去邮箱网页版「设置 → 账户」开启 SMTP 服务并生成<b>授权码</b>（smtp.qq.com / smtp.163.com，端口 465），把授权码当密码填。</span></div>
-          <div class="help-shot">完成后复制该服务的 <b>Service ID</b>（形如 service_xxxxxxx）——这是第 ① 个要填的值</div>
-          <div class="help-step"><span class="help-num">3</span><span>创建邮件模板：控制台左侧 <b>Email Templates</b> → <b>Create New Template</b>，按下表填写后 <b>Save</b>：</span></div>
-          <div class="help-shot">To Email（收件人）填 <b>{{to_email}}</b>（必填，否则发不出去）· Subject 填 <b>【美工接单助手】你的验证码：{{code}}</b> · Content 正文示例：<b>你正在进行{{purpose}}，验证码：{{code}}，5 分钟内有效（发送时间 {{time}}）。若非本人操作请忽略本邮件。</b></div>
-          <div class="help-step"><span class="help-num">4</span><span>获取公钥：控制台左侧 <b>Account</b> → <b>General</b> 页 → 找到 <b>Public Key</b>（一串 32 位字符）→ 复制。</span></div>
-          <div class="help-shot">至此拿到三个值：<b>Service ID</b>（第 2 步）+ <b>Template ID</b>（第 3 步，形如 template_xxxxxxx）+ <b>Public Key</b>（第 4 步）——这是第 ② ③ 个要填的值</div>
-          <div class="help-step"><span class="help-num">5</span><span>回到本应用填入：「个人设置 → 用户信息」→ 找到「<b>邮箱验证码服务（EmailJS）</b>」卡片 → 依次粘贴 Service ID / Template ID / Public Key → 点 <b>保存配置</b> → 点 <b>发送测试邮件</b>，收到邮件即配置成功。</span></div>
-          <div class="help-shot">位置：个人设置 → <b>用户信息</b> tab → 修改密码卡片下方</div>
-          <div class="help-step"><span class="help-num">6</span><span>之后注册新账户、修改密码时点「获取验证码」，验证码会真实发到邮箱；<b>未配置时走开发模式</b>（验证码直接弹窗显示），仅适合自己本地测试，公开部署前务必完成以上配置。</span></div>
-          <div class="help-step"><span class="help-num">Q</span><span><b>测试发送报错？</b>412/401 = 三个值填错或模板未保存；400 = 模板里缺 <b>{{to_email}}</b>；423 = 邮箱服务连接失效（重新授权）；一直收不到 = 检查垃圾箱 / 推广邮件分类。免费额度用尽（每月 200 封）会提示 402，下月 1 号自动恢复。</span></div>
+          <h4>⑦ 更新日志</h4>
+          <p class="note" style="text-align:left;margin-bottom:12px">网站的功能更新与问题修复都会记录在这里，最新版本在最上方。</p>
+          <div id="help-changelog"></div>
         </div>
         <div class="card help-card" style="grid-column:1/-1">
           <h4>反馈与建议</h4>
@@ -1314,6 +1305,7 @@ const defaultState = {
   receiptStyles:{},          // 我的自定义样式
   receiptMods:{},            // 各样式的小票模块设计（6 大模块设置与排序）
   receiptDefault:'stamp',
+  cloudSync:true,            // 云同步开关（用户可在 用户资料 里关闭，关闭后仅存本地）
   lastTemplateId:1,
   _prodTrim:true,      // defaultState 已只含 2 个预设商品，无需再清理
   _tplPresetMig:true   // defaultState 已是新版单预设结构，无需再做旧预设清理
@@ -1329,6 +1321,7 @@ function load(){
   ['profile','fee','receiptStyles','receiptMods'].forEach(k=>{ if(!d[k] || typeof d[k] !== 'object' || Array.isArray(d[k])) d[k] = clone(k); });
   if(!d.theme) d.theme = 'sketch';
   if(!Array.isArray(d.drafts)) d.drafts = [];
+  if(d.cloudSync == null) d.cloudSync = true;   // 云同步默认开启
   /* 定金 / 废稿：按比例(%) 与固定金额(¥) 各自独立保存，互不串扰 */
   if(d.fee.depositMode == null) d.fee.depositMode = 'pct';
   if(d.fee.depositPct == null) d.fee.depositPct = (typeof d.fee.deposit==='number')?d.fee.deposit:30;
@@ -1539,6 +1532,7 @@ async function cloudPull(){
 }
 async function cloudPush(){
   if(!_cloudOn || !_sb || !_sbUser) return;
+  if(S.cloudSync === false) return;   // 用户关闭云同步：数据仅存本地
   try{
     const now = new Date().toISOString();
     const rows = [];
@@ -1583,7 +1577,7 @@ function cloudMergePull(rows){
 }
 let _cloudPushTimer = null;
 function cloudPushSoon(){
-  if(!_cloudOn) return;
+  if(!_cloudOn || S.cloudSync === false) return;
   if(_cloudPushTimer) clearTimeout(_cloudPushTimer);
   _cloudPushTimer = setTimeout(()=>{ cloudPush().catch(()=>{}); }, 700);
 }
@@ -2207,6 +2201,16 @@ function openProfile(tab){
   if(tab==='fee') renderFee();
   if(tab==='tpl') renderTemplates();
   if(tab==='receipts') renderReceiptsPage();
+  if(tab==='help') renderChangelog();
+}
+/* 帮助与反馈 → 更新日志：完整展示 RELEASE_NOTES */
+function renderChangelog(){
+  const el = $('#help-changelog'); if(!el) return;
+  el.innerHTML = RELEASE_NOTES.map(r=>`
+    <div style="padding:10px 0;border-top:1px dashed var(--line, #ddd);${r===RELEASE_NOTES[0]?'border-top:none;padding-top:2px':''}">
+      <div style="font-weight:800;font-size:13.5px;margin-bottom:6px">v${esc(r.v)} <span class="note" style="font-weight:400">· ${esc(r.d)}${r.v===APP_VERSION?' · 当前版本':''}</span></div>
+      <div style="display:grid;gap:5px">${r.items.map(x=>`<div style="display:flex;gap:8px;font-size:13px;line-height:1.7;align-items:flex-start"><span style="color:var(--accent);font-weight:800;flex-shrink:0">·</span><span>${x}</span></div>`).join('')}</div>
+    </div>`).join('');
 }
 $$('#profile-tabs .btn').forEach(b=>b.addEventListener('click',()=>openProfile(b.dataset.tab)));
 function renderProfileInfo(){
@@ -2262,26 +2266,68 @@ function renderProfileInfo(){
     $('#p-pass-code').value=''; $('#p-newpass').value=''; $('#p-newpass2').value='';
     toast('密码已修改，下次登录请使用新密码');
   };
-  /* EmailJS 配置 */
-  const ejs = getEjsCfg();
-  $('#p-ejs-api').value = ejs.apiUrl || '';
-  $('#p-ejs-sid').value = ejs.serviceId || '';
-  $('#p-ejs-tid').value = ejs.templateId || '';
-  $('#p-ejs-pk').value  = ejs.publicKey || '';
-  $('#p-ejs-save').onclick = ()=>{
-    setEjsCfg({
-      apiUrl: $('#p-ejs-api').value.trim(),
-      serviceId: $('#p-ejs-sid').value.trim(), templateId: $('#p-ejs-tid').value.trim(), publicKey: $('#p-ejs-pk').value.trim()
-    });
-    toast('邮箱验证码配置已保存（当前模式：' + (vcMode()==='api' ? '后端接口' : (vcMode()==='direct' ? '本地直发' : '开发模式')) + '）');
+  /* 云同步开关与清除云端数据 */
+  const syncOn = ()=> S.cloudSync !== false;
+  const renderCloudCard = ()=>{
+    const btn = $('#p-cloud-toggle'), st = $('#p-cloud-state');
+    if(!btn || !st) return;
+    btn.textContent = syncOn() ? '关闭云同步' : '开启云同步';
+    btn.className = 'btn sm ' + (syncOn() ? 'ghost' : 'solid');
+    st.textContent = syncOn()
+      ? (_cloudOn ? '已连接云端，自动同步中' : '已开启（尚未连接云端，重新登录后生效）')
+      : '已关闭，数据仅保存在本浏览器';
   };
-  $('#p-ejs-test').onclick = ()=>{
-    setEjsCfg({
-      apiUrl: $('#p-ejs-api').value.trim(),
-      serviceId: $('#p-ejs-sid').value.trim(), templateId: $('#p-ejs-tid').value.trim(), publicKey: $('#p-ejs-pk').value.trim()
-    });
-    sendEmailCode(getSession(), 'pass', $('#p-pass-send'));
+  $('#p-cloud-toggle').onclick = ()=>{
+    if(needLogin()) return;
+    S.cloudSync = !syncOn();
+    save();
+    renderCloudCard();
+    if(syncOn()){
+      if(_cloudOn){ cloudPushSoon(); toast('云同步已开启，本地数据将同步到云端'); }
+      else toast('云同步已开启，重新登录连接云端后自动同步');
+    } else {
+      toast('云同步已关闭，数据仅保存在本浏览器');
+    }
   };
+  $('#p-cloud-clear').onclick = ()=>{
+    if(needLogin()) return;
+    if(!_sb || !_sbUser){ toast('尚未连接云端，请先开启云同步并重新登录'); return; }
+    modal(`<div style="padding:6px">
+        <h3 style="margin:0 0 10px">清除云端数据</h3>
+        <p class="note" style="text-align:left;color:var(--ink2)">是否清除云端所有数据？点击确认后则无法恢复。在此之前，请先导出数据。</p>
+        <div class="row" style="margin-top:16px;justify-content:flex-end;gap:8px;flex-wrap:wrap">
+          <button class="btn sm ghost" onclick="closeModal()">取消</button>
+          <button class="btn sm ghost" id="cloud-clear-export">导出数据</button>
+          <button class="btn sm solid" id="cloud-clear-next">已导出数据，继续清除</button>
+        </div>
+      </div>`, (root)=>{
+      root.querySelector('#cloud-clear-export').onclick = ()=>{ exportData(); };
+      root.querySelector('#cloud-clear-next').onclick = ()=>{
+        modal(`<div style="padding:6px">
+            <h3 style="margin:0 0 10px">⚠️ 最终确认</h3>
+            <p class="note" style="text-align:left;color:var(--ink2)">当前操作无法恢复，点击确认后将会清除当前账户的所有云端数据（不会注销账户，也不影响本地数据）。清除后云同步将自动关闭，重新开启后会以本地数据为准重新上传。</p>
+            <div class="row" style="margin-top:16px;justify-content:flex-end;gap:8px">
+              <button class="btn sm ghost" onclick="closeModal()">取消</button>
+              <button class="btn sm solid" id="cloud-clear-do">确认清除</button>
+            </div>
+          </div>`, async (root2)=>{
+          root2.querySelector('#cloud-clear-do').onclick = async ()=>{
+            try{
+              const { error } = await _sb.from('app_state').delete().eq('user_id', _sbUser.id);
+              if(error){ toast('清除失败：' + error.message); return; }
+              S._cloud = {};
+              S.cloudSync = false;   // 自动关闭同步，避免 save() 立刻把本地数据重新推上云
+              save();
+              renderCloudCard();
+              closeModal();
+              toast('云端数据已清除，云同步已自动关闭（本地数据不受影响）');
+            }catch(e){ toast('清除失败：' + (e && e.message || e)); }
+          };
+        });
+      };
+    });
+  };
+  renderCloudCard();
 }
 /* ---- 整体风格主题 ---- */
 const THEMES = [
@@ -4818,7 +4864,7 @@ async function sendEmailCode(email, purpose, btn){
     /* 未配置 EmailJS：开发模式，验证码直接弹窗显示（仅供本地测试） */
     modal(`<div style="padding:6px">
         <h3 style="margin:0 0 10px">邮箱服务未配置</h3>
-        <p class="note" style="text-align:left;color:var(--ink2)">到「个人设置 → 用户信息 → 邮箱验证码服务（EmailJS）」填好配置后，验证码就会真实发送到邮箱。当前为开发模式，验证码如下：</p>
+        <p class="note" style="text-align:left;color:var(--ink2)">当前为本地开发模式（未配置邮件服务），验证码直接显示如下，仅用于本地测试；线上部署后验证码将由服务端真实发送到邮箱。</p>
         <div style="font-size:30px;font-weight:800;letter-spacing:10px;text-align:center;margin:14px 0;user-select:all">${code}</div>
         <div class="row" style="justify-content:flex-end"><button class="btn sm solid" onclick="closeModal()">知道了</button></div>
       </div>`, ()=>{ done(); });
@@ -4944,8 +4990,8 @@ async function loginAs(email, isNew, pass){
   const pa = pendingAction; pendingAction = null;
   toast(isNew ? '注册成功，欢迎使用美工接单助手' : '欢迎回来，'+(nm||''));
   if(typeof pa === 'function') setTimeout(pa, 260);
-  /* 云端同步（失败静默回退本地，不阻断使用） */
-  if(pass){
+  /* 云端同步（失败静默回退本地，不阻断使用；用户关闭云同步时不做任何云端传输） */
+  if(pass && S.cloudSync !== false){
     try{
       if(await cloudEnsureSession(email, pass)){
         const rows = await cloudPull();
@@ -5049,9 +5095,15 @@ window.addEventListener('error', e=>{
 });
 
 /* ================= 版本更新推送（部署到 GitHub + Vercel 后，改 APP_VERSION 与 RELEASE_NOTES 即可向用户弹窗说明更新内容） ================= */
-const APP_VERSION = '1.11.3';
+const APP_VERSION = '1.12.0';
 const SEEN_KEY = 'huishi_seen_version_v1';
 const RELEASE_NOTES = [
+  { v:'1.12.0', d:'2026-10-01', items:[
+    '个人设置 → 用户资料 新增「云同步」开关：关闭后数据仅保存在本地浏览器，云端不再更新；重新开启后自动以本地数据为准上传云端',
+    '新增「清除云端数据」：仅删除服务器上该账户的数据，不注销账户、不影响本地数据；清除前会引导先导出备份，并经两次确认，清除后云同步自动关闭',
+    '帮助与反馈新增「⑦ 更新日志」：历次版本的功能更新与问题修复在此完整展示',
+    '移除「邮箱验证码服务（EmailJS）」前端配置卡：线上验证码全部由服务端发送，普通用户无需也无法自行配置密钥',
+  ]},
   { v:'1.11.3', d:'2026-10-01', items:[
     '修复云端覆盖风险：新设备登录时若拉取出错或云端为空，不再把本地默认空状态推回云端覆盖真实数据；仅当本地确有实质数据（订单/单主/模板/自定义昵称）时才上传，避免多设备互相清空',
   ]},
@@ -5185,7 +5237,7 @@ try{ updateTopbar(); }catch(err){ console.error(err); }
 go('home');
 /* 云端同步：尝试恢复已有 Supabase 会话；若已登录且会话有效，后台拉取合并云端数据 */
 cloudInit().then(async ()=>{
-  if(_cloudOn && _sess && getAccounts()[_sess]){
+  if(_cloudOn && _sess && getAccounts()[_sess] && S.cloudSync !== false){
     try{
       const rows = await cloudPull();
       if(cloudMergePull(rows)){ save(); applyTheme(); go(curPage, curTab); updateTopbar(); }
