@@ -1449,6 +1449,30 @@ function clientOf(n){ return S.clients.find(c=>c.nick===n); }
    按 id 并集合并，对象型整体替换。任何环节失败都静默回退纯本地，不阻断使用。 */
 const SUPABASE_URL   = 'https://kbbrnyvhxebrvwrwqlqs.supabase.co';
 const SUPABASE_ANON  = 'sb_publishable_jA2lmelkq26a_J4aYyJNAA_nYVe8bFh';
+/* 国内无法直连 *.supabase.co（DNS 被污染），云端请求统一改走本站 /api/sb 代理，
+   由 Vercel 服务端转发到 Supabase（服务端需配 SUPABASE_URL / SUPABASE_ANON_KEY）。 */
+let _sbProxyOk = null;   // null=未探测, true=代理可用, false=代理不可用(回退直连)
+async function sbFetch(url, opts){
+  url = String(url);
+  const o = opts || {};
+  const canProxy = (typeof location !== 'undefined' && location.protocol.indexOf('http') === 0)
+                && url.indexOf(SUPABASE_URL) === 0;
+  if(!canProxy) return fetch(url, o);
+  const rest = url.slice(SUPABASE_URL.length).replace(/^\//, '');
+  const proxyUrl = location.origin + '/api/sb?p=' + encodeURIComponent(rest);
+  if(_sbProxyOk !== false){
+    try{
+      const r = await fetch(proxyUrl, o);
+      _sbProxyOk = true;
+      return r;
+    }catch(err){
+      if(_sbProxyOk === true) throw err;   // 代理曾成功过，这次失败直接报错
+      _sbProxyOk = false;
+      console.warn('[cloud] 代理不可用，回退直连:', err && err.message);
+    }
+  }
+  return fetch(url, o);   // 代理不可用：回退直连（海外用户/本机调试场景）
+}
 let _sb = null, _sbUser = null, _cloudOn = false;
 const _CLOUD_ARR = ['orders','clients','templates','products'];
 const _CLOUD_OBJ = ['profile','fee','receiptStyles','receiptMods'];
@@ -1457,6 +1481,7 @@ async function cloudInit(){
   try{
     if(typeof window.supabase === 'undefined' || !window.supabase || !window.supabase.createClient) return false;
     _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
+      global: { fetch: sbFetch },
       auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:false, storageKey:'huishi_sb_auth_v1' }
     });
     const { data } = await _sb.auth.getSession();
@@ -4988,9 +5013,12 @@ window.addEventListener('error', e=>{
 });
 
 /* ================= 版本更新推送（部署到 GitHub + Vercel 后，改 APP_VERSION 与 RELEASE_NOTES 即可向用户弹窗说明更新内容） ================= */
-const APP_VERSION = '1.11.0';
+const APP_VERSION = '1.11.1';
 const SEEN_KEY = 'huishi_seen_version_v1';
 const RELEASE_NOTES = [
+  { v:'1.11.1', d:'2026-10-01', items:[
+    '云端同步线路修复：国内网络无法直连 Supabase 服务器，云端请求现统一经由本站服务器代理转发，不再依赖直连；代理不可用时自动回退直连（海外用户不受影响）',
+  ]},
   { v:'1.11.0', d:'2026-10-01', items:[
     '新增云端同步（Supabase）：登录后订单 / 单主 / 模板 / 商品 / 费用设置 / 小票配置自动多设备保持一致，按时间戳冲突合并，新增设备自动拉取云端数据；顶栏出现「☁ 云端」标记表示已同步',
     '登录 / 注册 / 改密码接入 Supabase Auth（邮箱+密码），与现有邮箱验证码体验并存；已注册的老账户首次登录会自动迁移到云端，本地数据作为离线缓存保留，任何同步异常都静默回退本地不丢数据',
