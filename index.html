@@ -1041,6 +1041,19 @@ input,select,textarea{font-size:13.5px !important;font-weight:500}
         <div class="m-actions" style="display:flex;justify-content:flex-end;margin-top:14px">
           <button class="btn solid sm" id="p-save">保存资料</button>
         </div>
+
+        <div class="section-h" style="margin-top:20px">云同步</div>
+        <p class="note" style="text-align:left;line-height:1.8">开启后，订单 / 单主 / 模板 / 商品 / 费用与小票设置会自动保存到云端，换设备登录同一邮箱即可同步；<b>关闭后数据仅保存在本浏览器</b>，云端不再更新。</p>
+        <div class="row" style="justify-content:space-between;align-items:center;margin-top:10px;gap:10px;flex-wrap:wrap">
+          <div style="font-size:14px">当前状态：<b id="p-cloud-state">—</b></div>
+          <button class="btn sm solid" id="p-cloud-toggle">开启云同步</button>
+        </div>
+
+        <div class="section-h" style="margin-top:18px">危险操作</div>
+        <p class="note" style="text-align:left;line-height:1.8">清除云端数据<b>只删除服务器上的数据</b>，不会注销账户，也不影响本地数据。清除前请先「导出数据」做好备份。</p>
+        <div class="m-actions" style="display:flex;justify-content:flex-end;margin-top:10px">
+          <button class="btn sm ghost" id="p-cloud-clear">清除云端数据</button>
+        </div>
       </div>
       <div class="card" style="max-width:620px;margin-top:14px">
         <div class="section-h" style="margin-top:0">修改密码（邮箱验证）</div>
@@ -1055,19 +1068,6 @@ input,select,textarea{font-size:13.5px !important;font-weight:500}
         <label class="f">确认新密码 <input id="p-newpass2" type="password" autocomplete="new-password"></label>
         <div class="m-actions" style="display:flex;justify-content:flex-end;margin-top:10px">
           <button class="btn solid sm" id="p-pass-save">修改密码</button>
-        </div>
-      </div>
-      <div class="card" style="max-width:620px;margin-top:14px">
-        <div class="section-h" style="margin-top:0">云同步</div>
-        <p class="note" style="text-align:left;line-height:1.8">开启后，订单 / 单主 / 模板 / 商品 / 费用与小票设置会自动保存到云端，换设备登录同一邮箱即可同步；<b>关闭后数据仅保存在本浏览器</b>，云端不再更新。</p>
-        <div class="row" style="justify-content:space-between;align-items:center;margin-top:10px;gap:10px;flex-wrap:wrap">
-          <div style="font-size:14px">当前状态：<b id="p-cloud-state">—</b></div>
-          <button class="btn sm solid" id="p-cloud-toggle">开启云同步</button>
-        </div>
-        <div class="section-h" style="margin-top:16px">危险操作</div>
-        <p class="note" style="text-align:left;line-height:1.8">清除云端数据<b>只删除服务器上的数据</b>，不会注销账户，也不影响本地数据。清除前请先「导出数据」做好备份。</p>
-        <div class="m-actions" style="display:flex;justify-content:flex-end;margin-top:10px">
-          <button class="btn sm ghost" id="p-cloud-clear">清除云端数据</button>
         </div>
       </div>
     </div>
