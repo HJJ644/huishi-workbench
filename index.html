@@ -1517,6 +1517,16 @@ async function cloudTryLogin(email, password){
     return !!_sbUser;
   }catch(e){ _cloudOn = false; return false; }
 }
+/* 判断本地是否有「实质数据」，避免把默认空状态推到云端覆盖真实数据 */
+function localHasData(){
+  const dnick = (defaultState && defaultState.profile && defaultState.profile.nick) || '';
+  return !!(
+    (Array.isArray(S.orders)   && S.orders.length)   ||
+    (Array.isArray(S.clients)  && S.clients.length)  ||
+    (Array.isArray(S.templates)&& S.templates.length)||
+    (S.profile && S.profile.nick && S.profile.nick !== dnick)
+  );
+}
 function cloudSignOut(){ try{ if(_sb) _sb.auth.signOut(); }catch(e){} _sbUser=null; _cloudOn=false; _cloudRefreshBadge(); }
 function _cloudRefreshBadge(){ const el=$('#tb-cloud'); if(el) el.classList.toggle('on', _cloudOn); }
 async function cloudPull(){
@@ -4939,8 +4949,16 @@ async function loginAs(email, isNew, pass){
     try{
       if(await cloudEnsureSession(email, pass)){
         const rows = await cloudPull();
-        if(cloudMergePull(rows)){ save(); applyTheme(); go(curPage, curTab); updateTopbar(); }
-        else { cloudPushSoon(); }
+        if(rows && rows.length){
+          /* 云端有数据：拉取合并，绝不用本地默认覆盖云端 */
+          if(cloudMergePull(rows)){ save(); applyTheme(); go(curPage, curTab); updateTopbar(); }
+        } else if(rows === null){
+          /* 拉取出错：保留本地，不要覆盖云端真实数据 */
+          console.warn('[cloud] 拉取出错，保留本地数据');
+        } else {
+          /* 云端确实为空（真·新用户）：仅当本地有实质数据才推上去 */
+          if(localHasData()) cloudPushSoon();
+        }
       }
     }catch(e){}
   }
@@ -5031,9 +5049,12 @@ window.addEventListener('error', e=>{
 });
 
 /* ================= 版本更新推送（部署到 GitHub + Vercel 后，改 APP_VERSION 与 RELEASE_NOTES 即可向用户弹窗说明更新内容） ================= */
-const APP_VERSION = '1.11.2';
+const APP_VERSION = '1.11.3';
 const SEEN_KEY = 'huishi_seen_version_v1';
 const RELEASE_NOTES = [
+  { v:'1.11.3', d:'2026-10-01', items:[
+    '修复云端覆盖风险：新设备登录时若拉取出错或云端为空，不再把本地默认空状态推回云端覆盖真实数据；仅当本地确有实质数据（订单/单主/模板/自定义昵称）时才上传，避免多设备互相清空',
+  ]},
   { v:'1.11.2', d:'2026-10-01', items:[
     '修复跨设备登录：换电脑/换浏览器登录时，原本会因本地无账户记录被误报「账户不存在」。现改为本地无账户时先向云端验证，验证通过自动建档并登录，多设备用同一邮箱即可同步数据',
   ]},
