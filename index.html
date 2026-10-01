@@ -1447,7 +1447,7 @@ function clientOf(n){ return S.clients.find(c=>c.nick===n); }
    设计：本地 localStorage 仍是离线缓存与单设备主存；登录后把数据同步到 Supabase，
    按 key 的 updated_at 做「最后写入者胜出」：数组型（orders/clients/templates/products）
    按 id 并集合并，对象型整体替换。任何环节失败都静默回退纯本地，不阻断使用。 */
-const SUPABASE_URL   = 'https://kbbrnyvhxebrvwrwqlqs.supabase.co';
+const SUPABASE_URL   = 'https://kkbrnyvhxebrwbrwqlqs.supabase.co';
 const SUPABASE_ANON  = 'sb_publishable_jA2lmelkq26a_J4aYyJNAA_nYVe8bFh';
 /* 国内无法直连 *.supabase.co（DNS 被污染），云端请求统一改走本站 /api/sb 代理，
    由 Vercel 服务端转发到 Supabase（服务端需配 SUPABASE_URL / SUPABASE_ANON_KEY）。 */
