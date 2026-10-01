@@ -1506,6 +1506,17 @@ async function cloudEnsureSession(email, password){
     return true;
   }catch(e){ return false; }
 }
+/* 仅尝试云端登录（不注册）；本地无账户时用于跨设备登录的前置校验 */
+async function cloudTryLogin(email, password){
+  if(!_sb) return false;
+  try{
+    const r = await _sb.auth.signInWithPassword({ email, password });
+    if(r.error || !r.data || !r.data.session){ _cloudOn = false; return false; }
+    _sbUser = r.data.session.user || null;
+    _cloudOn = !!_sbUser; _cloudRefreshBadge();
+    return !!_sbUser;
+  }catch(e){ _cloudOn = false; return false; }
+}
 function cloudSignOut(){ try{ if(_sb) _sb.auth.signOut(); }catch(e){} _sbUser=null; _cloudOn=false; _cloudRefreshBadge(); }
 function _cloudRefreshBadge(){ const el=$('#tb-cloud'); if(el) el.classList.toggle('on', _cloudOn); }
 async function cloudPull(){
@@ -4891,8 +4902,15 @@ async function authSubmit(){
     setAccounts(acc);
     await loginAs(email, true, pass);
   } else {
-    if(!acc[email]){ $('#auth-err').textContent='账户不存在，请先注册'; return; }
-    if(acc[email].pass !== hashStr(pass)){ $('#auth-err').textContent='密码错误'; return; }
+    const localExists = !!acc[email];
+    if(localExists && acc[email].pass !== hashStr(pass)){ $('#auth-err').textContent='密码错误'; return; }
+    if(!localExists){
+      /* 本地无账户（新设备）：先向云端验证，避免「账户不存在」误报，通过则自动建档 */
+      const ok = await cloudTryLogin(email, pass);
+      if(!ok){ $('#auth-err').textContent='账户不存在或密码错误'; return; }
+      acc[email] = { pass: hashStr(pass), name: email.split('@')[0] };
+      setAccounts(acc);
+    }
     await loginAs(email, false, pass);
   }
 }
@@ -5013,9 +5031,12 @@ window.addEventListener('error', e=>{
 });
 
 /* ================= 版本更新推送（部署到 GitHub + Vercel 后，改 APP_VERSION 与 RELEASE_NOTES 即可向用户弹窗说明更新内容） ================= */
-const APP_VERSION = '1.11.1';
+const APP_VERSION = '1.11.2';
 const SEEN_KEY = 'huishi_seen_version_v1';
 const RELEASE_NOTES = [
+  { v:'1.11.2', d:'2026-10-01', items:[
+    '修复跨设备登录：换电脑/换浏览器登录时，原本会因本地无账户记录被误报「账户不存在」。现改为本地无账户时先向云端验证，验证通过自动建档并登录，多设备用同一邮箱即可同步数据',
+  ]},
   { v:'1.11.1', d:'2026-10-01', items:[
     '云端同步线路修复：国内网络无法直连 Supabase 服务器，云端请求现统一经由本站服务器代理转发，不再依赖直连；代理不可用时自动回退直连（海外用户不受影响）',
   ]},
