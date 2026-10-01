@@ -811,7 +811,7 @@ input,select,textarea{font-size:13.5px !important;font-weight:500}
 .ord-mini,.lg-row,.draft-row,.draft-row .note{font-size:13.5px !important}
 .tag{font-size:12px !important;font-weight:600}
 .toast-msg{font-size:13.5px !important;font-weight:600}
-#tb-cloud{display:none;align-items:center;gap:3px;font-size:11px;color:var(--accent);font-weight:700;margin-left:6px}
+#tb-cloud{display:none;align-items:center;gap:3px;font-size:11px;font-weight:700;margin-left:6px}
 #tb-cloud.on{display:inline-flex}
 </style>
 <!-- 云端同步客户端：Supabase（公开 anon/publishable key 可安全嵌入；service_role 仅存 Vercel 环境变量）。
@@ -899,7 +899,7 @@ input,select,textarea{font-size:13.5px !important;font-weight:500}
     <div class="tb-user" id="tb-user">
       <span class="tb-avatar" id="tb-avatar">绘</span>
       <span class="tb-email" id="tb-email">—</span>
-      <span id="tb-cloud" title="数据已开启云端同步（多设备实时一致）">☁ 云端</span>
+      <span id="tb-cloud"></span>
     </div>
     <div class="tb-actions">
       <button class="btn sm solid" id="tb-login">登录 / 注册</button>
@@ -1421,7 +1421,13 @@ function load(){
   });
   return d;
 }
-function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){} cloudPushSoon(); }
+function save(){
+  /* 本地存储永远是第一写入方：先落本地，再异步推云端；云端失败不影响本地 */
+  let localOk = true;
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){ localOk = false; }
+  if(!localOk) toast('⚠️ 本地存储写入失败（浏览器空间可能已满），请立即「导出数据」备份');
+  cloudPushSoon();
+}
 const $ = s=>document.querySelector(s);
 const $$ = s=>[...document.querySelectorAll(s)];
 const esc = s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -1543,7 +1549,22 @@ function localHasData(){
   );
 }
 function cloudSignOut(){ try{ if(_sb) _sb.auth.signOut(); }catch(e){} _sbUser=null; _cloudOn=false; _isPro=null; _cloudRefreshBadge(); }
-function _cloudRefreshBadge(){ const el=$('#tb-cloud'); if(el) el.classList.toggle('on', _cloudOn && _isPro !== false); }
+function _cloudRefreshBadge(){
+  const el = $('#tb-cloud'); if(!el) return;
+  const logged = !!getSession();
+  /* 实际同步中 = 已登录 + 用户开关开启 + 云端会话在 + 已开通会员 */
+  const on = logged && S.cloudSync !== false && _cloudOn && _isPro !== false;
+  el.classList.toggle('on', logged);
+  if(on){
+    el.innerHTML = '✅ 已开启云端同步';
+    el.style.color = '#16a34a';
+    el.title = '数据已开启云端同步（多设备实时一致）';
+  }else{
+    el.innerHTML = '× 未同步';
+    el.style.color = 'var(--ink2)';
+    el.title = '云同步未开启，数据仅保存在本浏览器（可在个人设置 → 用户资料中开启）';
+  }
+}
 async function cloudPull(){
   if(!_cloudOn || !_sb || !_sbUser) return null;
   try{
@@ -4966,7 +4987,7 @@ function updateTopbar(){
     const tba = $('#tb-avatar');
     if(S.profile && S.profile.avatar) tba.innerHTML = `<img src="${S.profile.avatar}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit">`;
     else tba.textContent = (nm||'绘')[0];
-    $('#tb-email').textContent  = getSession();
+    $('#tb-email').textContent  = nm;   // 顶栏显示昵称而非邮箱
   }
   _cloudRefreshBadge();
 }
