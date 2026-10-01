@@ -9,8 +9,8 @@
  * 安全说明：本接口只做透明转发（方法/头/体原样传递），匿名 key 由服务端注入；
  * 用户身份靠客户端携带的 Authorization: Bearer <user_jwt> 透传，配合数据库 RLS 隔离，
  * 任何用户只能读写自己的行。 */
-const SB_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
-const SB_KEY = process.env.SUPABASE_ANON_KEY || '';
+const SB_URL = (process.env.SUPABASE_URL || '').trim().replace(/\/$/, '');
+const SB_KEY = (process.env.SUPABASE_ANON_KEY || '').trim();
 
 module.exports = async (req, res) => {
   if (!SB_URL || !SB_KEY) {
@@ -49,6 +49,7 @@ module.exports = async (req, res) => {
     res.setHeader('Content-Type', r.headers.get('content-type') || 'application/json');
     res.send(txt);
   } catch (e) {
-    res.status(502).json({ error: 'upstream_error', detail: String(e && e.message || e) });
+    const cause = e && e.cause ? (' / cause: ' + (e.cause.code || e.cause.message || e.cause)) : '';
+    res.status(502).json({ error: 'upstream_error', detail: String(e && e.message || e) + cause, targetHost: SB_URL.replace(/^https:\/\//, '') });
   }
 };
